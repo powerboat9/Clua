@@ -54,6 +54,9 @@ local fastNumberSufixTest = {
     L = true
 }
 
+local fastWhiteSpaceTest = {
+    ["\t"
+
 local function pullStringLiteral(str, start)
     local startChar = string.sub(str, start, start)
     if startChar ~= "\"" then
@@ -105,6 +108,9 @@ local function pullNumberLiteral(str, start)
     end
     return start, i - 1
 end
+
+local function skipWhiteSpace(str, i)
+    while 
 
 local function parse(code)
     local tree = {}
