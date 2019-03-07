@@ -47,10 +47,17 @@ local fastHexTest = {
     F = 15
 }
 
+local fastNumberSufixTest = {
+    u = true,
+    U = true,
+    l = true,
+    L = true
+}
+
 local function pullStringLiteral(str, start)
     local startChar = string.sub(str, start, start)
     if startChar ~= "\"" then
-        error("Not a string literal, 2)
+        return nil
     else
         local i = start + 1
         local totalLen = #str
@@ -74,7 +81,34 @@ local function pullStringLiteral(str, start)
     end
 end
 
-local function pull
+local function pullNumberLiteral(str, start)
+    local c = string.sub(str, start, start)
+    local i = start
+    if c == "0" then
+        i = i + 1
+        c = string.sub(str, i, i)
+        if (c == "x") and (c == "X") then
+            repeat
+                i = i + 1
+                c = string.sub(str, i, i)
+            until not fastHexTest[c]
+        elseif fastOctTest[c] then
+            repeat
+                i = i + 1
+                c = string.sub(str, i, i)
+            until not fastOctTest[c]
+        end
+    end
+    while fastNumberSufixTest[c] do
+        i = i + 1
+        c = string.sub(str, i, i)
+    end
+    return start, i - 1
+end
 
 local function parse(code)
-    local 
+    local tree = {}
+    local pos = {}
+    local i = 1
+    while true do
+        
