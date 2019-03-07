@@ -47,33 +47,27 @@ local fastHexTest = {
     F = 15
 }
 
-local function pullStringLiteralPos(str, start)
+local function pullStringLiteral(str, start)
     local startChar = string.sub(str, start, start)
     if startChar ~= "\"" then
         error("Not a string literal, 2)
     else
         local i = start + 1
         local totalLen = #str
-        local wasBackSlash
+        local wasBackSlash = false
         while true do
             if i > totalLen then
-                return -1
+                return nil
             end
             local c = string.sub(str, i, i)
-            if c == "\\" then
-                i = i + 1
-                if i > totalLen then
-                    return -1
+            if wasBackSlash then
+                wasBackSlash = false
+            else
+                if c == "\\" then
+                    wasBackSlash = true
+                elseif c == "\"" then
+                    return start, i
                 end
-                c = string.sub(str, i, i)
-                if c == "x" then
-                    repeat
-                        c = 
-                    until not fastHexCheck[c]
-                elseif fastOctCheck[c] and
-                i = i + 2
-            elseif c == "\"" then
-                return start, i
             end
             i = i + 1
         end
