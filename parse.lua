@@ -74,5 +74,7 @@ local function pullStringLiteral(str, start)
     end
 end
 
+local function pull
+
 local function parse(code)
     local 
