@@ -55,7 +55,69 @@ local fastNumberSufixTest = {
 }
 
 local fastWhiteSpaceTest = {
-    ["\t"
+    [" "] = true,
+    ["\t"] = true,
+    ["\n"] = true,
+    ["\v"] = true,
+    ["\f"] = true
+}
+
+local fastAlphaTest = {
+}
+
+local fastVarTest = {
+    ["0"] = 0,
+    ["1"] = 1,
+    ["2"] = 2,
+    ["3"] = 3,
+    ["4"] = 4,
+    ["5"] = 5,
+    ["6"] = 6,
+    ["7"] = 7,
+    ["8"] = 8,
+    ["9"] = 9,
+    _ = true
+}
+
+do
+    local s = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    for i = 1, #s do
+        local c = string.sub(s, i, i)
+        fastAlphaTest[c] = true
+        fastVarTest[c] = true
+    end
+end
+
+local fastEscTest = {
+    ["a"] = "\a",
+    ["b"] = "\b",
+    ["f"] = "\f",
+    ["n"] = "\n",
+    ["r"] = "\r",
+    ["t"] = "\t",
+    ["v"] = "\v"
+}
+
+local function pullEscCode(str, start)
+    local c = string.sub(str, start, start)
+    if fastOctTest[c] then
+        local i = 
+    elseif c == "x" then
+        local i = start + 1
+        while true do
+            c = string.sub(str, i, i)
+            if not fastHexTest[c] then
+                break
+            end
+            i = i + 1
+        end
+        i = i - 1
+        if i == start then
+            return nil
+        else
+            return start, i
+        end
+    elseif c == "
 
 local function pullStringLiteral(str, start)
     local startChar = string.sub(str, start, start)
@@ -77,6 +139,8 @@ local function pullStringLiteral(str, start)
                     wasBackSlash = true
                 elseif c == "\"" then
                     return start, i
+                elseif c == "\n" then
+                    return nil
                 end
             end
             i = i + 1
@@ -110,11 +174,24 @@ local function pullNumberLiteral(str, start)
 end
 
 local function skipWhiteSpace(str, i)
-    while 
+    while fastWhiteSpaceTest[string.sub(str, i, i)] do
+        i = i + 1
+    end
+    return i
+end
 
-local function parse(code)
+local function pullValue(str, i)
+    local c = 
+
+local function pullStatement(str, i)
+end
+
+local function parse(str)
     local tree = {}
-    local pos = {}
-    local i = 1
+    local pos = tree
+    local consts = {}
+    local labels = {}
+    local types = {}
+    local varTypes = {}
     while true do
         
