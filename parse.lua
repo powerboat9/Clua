@@ -100,9 +100,19 @@ local fastEscTest = {
 
 local function pullEscCode(str, start)
     local c = string.sub(str, start, start)
-    if fastOctTest[c] then
-        local i = 
-    elseif c == "x" then
+    if fastOctTest[c] then -- pull a octal number, 3 digits max
+        local cnt = 1
+        local i = start + 1
+        while cnt <= 2 do
+            c = string.sub(str, i, i)
+            if not fastOctTest[c] then
+                break
+            end
+            i = i + 1
+            cnt = cnt + 1
+        end
+        return start, i - 1
+    elseif (c == "x") or (c == "X") then
         local i = start + 1
         while true do
             c = string.sub(str, i, i)
@@ -117,7 +127,43 @@ local function pullEscCode(str, start)
         else
             return start, i
         end
-    elseif c == "
+    elseif c == "u" then
+        if (#str - start) < 4 then
+            return nil
+        end
+        return start, start + 4
+    elseif c == "U" then
+        if (#str - start) < 8 then
+            return nil
+        end
+        return start, start + 8
+    end
+    return start, start
+end
+
+local function pullCharLiteral(str, start)
+    local len = #str
+    if ((len - start) < 2) or (not (string.sub(str, start, start) == "'")) then
+        return nil
+    else
+        local i = start + 1
+        local c = string.sub(str, i, i)
+        if c == "\\" then
+            local ok, e = pullEscCode(str, i + 1)
+            if not ok then
+                return nil
+            end
+            i = e
+        end
+        i = i + 1
+        c = string.sub(str, i, i)
+        if c == "'" then
+            return start, i
+        else
+            return nil
+        end
+    end
+end
 
 local function pullStringLiteral(str, start)
     local startChar = string.sub(str, start, start)
@@ -127,13 +173,15 @@ local function pullStringLiteral(str, start)
         local i = start + 1
         local totalLen = #str
         local wasBackSlash = false
-        while true do
-            if i > totalLen then
-                return nil
-            end
+        while i <= totalLen do
             local c = string.sub(str, i, i)
             if wasBackSlash then
                 wasBackSlash = false
+                local ok, e = pullEscCode(str, i)
+                if not ok then
+                    return nil
+                end
+                i = e
             else
                 if c == "\\" then
                     wasBackSlash = true
@@ -145,6 +193,7 @@ local function pullStringLiteral(str, start)
             end
             i = i + 1
         end
+        return nil
     end
 end
 
@@ -154,11 +203,16 @@ local function pullNumberLiteral(str, start)
     if c == "0" then
         i = i + 1
         c = string.sub(str, i, i)
-        if (c == "x") and (c == "X") then
+        if (c == "x") or (c == "X") then
             repeat
                 i = i + 1
                 c = string.sub(str, i, i)
             until not fastHexTest[c]
+        elseif (c == "b") or (c == "B") then
+            repeat
+                i = i + 1
+                c = string.sub(str, i, i)
+            until (c ~= "0") and (c ~= "1")
         elseif fastOctTest[c] then
             repeat
                 i = i + 1
@@ -180,8 +234,8 @@ local function skipWhiteSpace(str, i)
     return i
 end
 
-local function pullValue(str, i)
-    local c = 
+local function tokenise(str)
+    
 
 local function pullStatement(str, i)
 end
