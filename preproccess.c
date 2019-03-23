@@ -1,7 +1,98 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <ctype.h>
-#include "defs.c"
+#include "defs.h"
+
+struct macro_def {
+    char *name;
+    char **sections;
+    unsigned int nargs;
+    unsigned char isMethod;
+};
+
+#define INIT_BUFF_SIZE 2048
+
+int main(int argc, char **args) {
+    char *outFileStr = NULL;
+    while (1) {
+        switch (getopt(argc, args, "+do:")) {
+            case 'd':
+                printf("%s\n", optarg);
+                break;
+            case 'o':
+                printf("Loading file: %s\n", optarg);
+                outFileStr = optarg;
+                break;
+            case '?':
+                return 2;
+            case -1: goto done;
+        }
+    }
+    done:
+    if (optind >= argc) {
+        printf("Usage: %s [flags] file\n", *args);
+        return 2;
+    }
+    FILE *inFile;
+    if ((inFile = fopen(args[optind], "rb")) == NULL) {
+        fputs("Could not open input file", stderr);
+        return 1;
+    }
+    char *data;
+    size_t len;
+    {
+        if ((data = (char *) malloc(INIT_BUFF_SIZE)) == -1) {
+            fputs("Could not allocate more memory\n", stderr);
+            fclose(inFile);
+            return 1;
+        }
+        len = 0;
+        size_t mem = INIT_BUFF_SIZE;
+        char tmpBuff[INIT_BUFF_SIZE];
+        int rlen;
+        while (1) {
+            rlen = fread(tmpBuff, 1, INIT_BUFF_SIZE, inFile);
+            if (ferr(inFile)) {
+                fclose(inFile);
+                fputs("Read error with input file\n", stderr);
+                return 1;
+            }
+            if (rlen < INIT_BUFF_SIZE) {
+                if (rlen == 0) {
+                    fclose(inFile);
+                    if (len != mem) {
+                        char *newData = realloc(data, len);
+                        if (newData == NULL) {
+                            fputs("Warning: could not shrink data allocation", stderr);
+                        } else {
+                            data = newData;
+                        }
+                    }
+                    break;
+                } else {
+                    int nlen = len + rlen;
+                    char *newData = realloc(data, nlen);
+                    if (newData == NULL) {
+                        if (nlen > mem) {
+                            fputs("Failed to allocate more memory", stderr);
+        }
+    }
+    fwrite(
+    FILE *outFile;
+    int shouldFreeOut;
+    if (outFileStr == NULL) {
+        outFile = stdout;
+        shouldFreeOut = 0;
+    } else {
+        if ((outFile = fopen(outFileStr, "wb")) == NULL) {
+            fputs("Could not open output file\n", stderr);
+            return 1;
+        }
+        shouldFreeOut = 1;
+    }
+    return 0;
+}
 
 #define hasError(s) ((s)->err))
 #define hasMore(s) (((s)->data) <= ((s)->last))
