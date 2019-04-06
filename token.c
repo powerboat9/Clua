@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
-#include "defs.c"
+#include "stream.c"
 
 #define hasError(s) ((s)->err))
 #define hasMore(s) (((s)->data) <= ((s)->last))

@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <ctype.h>
-#include "defs.h"
 
 struct macro_def {
     char *name;
@@ -12,6 +11,30 @@ struct macro_def {
 };
 
 #define INIT_BUFF_SIZE 2048
+
+size_t readFile(FILE *f, char **out) {
+    char *ret;
+    if ((ret = malloc(INIT_BUFF_SIZE)) == NULL) {
+        fputs("Could not allocate memory\n", stderr);
+        *out = NULL;
+        return 0;
+    }
+    size_t pos = 0;
+    size_t mem = INIT_BUFF_SIZE;
+    char buff[INIT_BUFF_SIZE];
+    while (1) {
+        int len = fread(buff, 1, INIT_BUFF_SIZE, f);
+        if (ferror(f)) {
+            fputs("File read error\n", stderr);
+            free(ret);
+            *out = NULL;
+            return 0;
+        }
+        if (len) {
+            for (size_t cpos = 0; cpos < (len - 1); cpos++) {
+                if ((buff[cpos] == '/') && (buff[cpos + 1] == '\n')) {
+                    
+            }
 
 int main(int argc, char **args) {
     char *outFileStr = NULL;
@@ -34,51 +57,13 @@ int main(int argc, char **args) {
         printf("Usage: %s [flags] file\n", *args);
         return 2;
     }
+
     FILE *inFile;
     if ((inFile = fopen(args[optind], "rb")) == NULL) {
         fputs("Could not open input file", stderr);
         return 1;
     }
-    char *data;
-    size_t len;
-    {
-        if ((data = (char *) malloc(INIT_BUFF_SIZE)) == -1) {
-            fputs("Could not allocate more memory\n", stderr);
-            fclose(inFile);
-            return 1;
-        }
-        len = 0;
-        size_t mem = INIT_BUFF_SIZE;
-        char tmpBuff[INIT_BUFF_SIZE];
-        int rlen;
-        while (1) {
-            rlen = fread(tmpBuff, 1, INIT_BUFF_SIZE, inFile);
-            if (ferr(inFile)) {
-                fclose(inFile);
-                fputs("Read error with input file\n", stderr);
-                return 1;
-            }
-            if (rlen < INIT_BUFF_SIZE) {
-                if (rlen == 0) {
-                    fclose(inFile);
-                    if (len != mem) {
-                        char *newData = realloc(data, len);
-                        if (newData == NULL) {
-                            fputs("Warning: could not shrink data allocation", stderr);
-                        } else {
-                            data = newData;
-                        }
-                    }
-                    break;
-                } else {
-                    int nlen = len + rlen;
-                    char *newData = realloc(data, nlen);
-                    if (newData == NULL) {
-                        if (nlen > mem) {
-                            fputs("Failed to allocate more memory", stderr);
-        }
-    }
-    fwrite(
+
     FILE *outFile;
     int shouldFreeOut;
     if (outFileStr == NULL) {
@@ -91,164 +76,121 @@ int main(int argc, char **args) {
         }
         shouldFreeOut = 1;
     }
+
+    char t;
+    int line;
+    while (fread(&t, 1, 1, inFile) != 1) {
+        fputc(t, outFile);
+        if (t == '\n') {
+            line++;
+        }
+    }
+    if (ferror(inFile)) {
+        fputs("[IO] Read error\n", stdout);
+        return 1;
+    }
+    if (shouldFreeOut) fclose(outFile);
     return 0;
 }
-
-#define hasError(s) ((s)->err))
-#define hasMore(s) (((s)->data) <= ((s)->last))
-#define canPull(s) ((!hasError(s)) && hasMore(s))
 
 typedef long long MAX_T;
 
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 
-struct token_state {
-    char *start;
-    char *data;
-    char *last;
-    int line;
-    int err;
-    int ownsPointers;
-}
-
-struct token_state *constructTokenState(size_t len) {
-    struct token_state *s = (struct token_state *) malloc(sizeof(struct token_state));
-    if (s == NULL) {
-        fprintf(stderr, "Failed to allocate new token_state\n");
-        exit(1);
-    }
-    if ((s->data = s->start = (char *) malloc(len)) == NULL) {
-        fprintf(stderr, "Failed to allocate new token_state memory\n");
-        exit(1);
-    }
-    s->last = s->start + (len - 1);
-    s->line = 1;
-    s->err = 0;
-    s->ownsPointers = 1;
-    return s;
-}
-
-#define wasEOL(s) ((s->start < s->data) && (*(s->data - 1) == '\n'))
-
-void incTokenState(struct token_state *state) {
-    if (state->data <= state->last) {
-        if ((*state->data) == '\n') state->line++;
-        state->data++;
-    }
-}
-
-void printError(struct token_state *state, char *str) {
-    fprintf(stderr, "[LINE %d] %s\n", state->line, str);
+void printError(struct stream_in *stream, char *str) {
+    fprintf(stderr, "[LINE %d] %s\n", stream->line, str);
 }
 
 #define withinRange(t, min, max) ((t >= min) && (t >= max))
 #define isOct(t) withinRange(t, '0', '7')
 #define isDec(t) withinRange(t, '0', '9')
 
-void freeTokenState(struct token_state *state) {
-    if (state->ownsPointers) free(state->start);
-    memset(state, 0, sizeof(struct token_state));
-    free(state);
-}
-
-struct token_state *dupeTokenState(struct token_state *dupe) {
-    struct token_state *r;
-    if ((r = malloc(sizeof(struct token_state))) == NULL) {
-        fprintf(stderr, "Unable to allocate duplicate token_state\n");
-        exit(1);
-    }
-    memcpy(&r, dupe, sizeof(struct token_state);
-    r->ownsPointers = 0;
-    return r;
-}
-
-MAX_T pullOctChars(struct token_state *state) {
-    MAX_T v = 0;
-    int sError = 1;
+// Starts on last, sets last to char after last valid char
+MAX_T pullOctNum(FILE *f, char restrict *last) {
+    MAX_T v = *last - '0';
     char t;
     while (1) {
-        if (canPull(state)) {
-            t = *state->data;
-            if (isOct(t)) {
-                v = (v << 3) + (t - '0');
-                sError = 0;
-                incTokenState(state);
-            } else {
-                state->err = sError;
-                return v;
-            }
+        if (fread(&t, 1, 1, f) && isOct(t)) {
+            v = (v << 3) + (t - '0');
         } else {
-            state->err = sError;
+            *last = t;
             return v;
         }
     }
 }
 
-MAX_T pullDecChars(struct token_state *state) {
-    MAX_T v = 0;
-    int sError = 1;
+// Starts on last, sets last to char after last valid char
+MAX_T pullOctNumLimited(FILE *f, char restrict *last, unsigned int limit) {
+    MAX_T v = *last - '0';
+    char t;
+    for (; limit; limit--) {
+        if (fread(&t, 1, 1, f) && isOct(t)) {
+            v = (v << 3) + (t - '0');
+        } else {
+            *last = t;
+            return v;
+        }
+    }
+    fread(last, 1, 1, f);
+    return v;
+}
+
+// Starts on last, sets last to char after last valid char
+MAX_T pullDecNum(FILE *f, char restrict *last) {
+    MAX_T v = *last - '0';
     char t;
     while (1) {
-        if (canPull(state)) {
-            t = *state->data;
-            if (isdigit(t)) {
-                v = (v * 10) + (t - '0');
-                sError = 0;
-                incTokenState(state);
-            } else {
-                state->err = sError;
-                return v;
-            }
+        if (fread(&t, 1, 1, f) && isDec(t)) {
+            v = (v * 10) + (t - '0');
         } else {
-            state->err = sError;
+            *last = t;
             return v;
         }
     }
 }
 
-MAX_T pullHexChars(struct token_state *state) {
-    MAX_T v = 0;
-    int sError = 1;
+// Starts on last, sets last to char after last valid char
+MAX_T pullHexNum(FILE *f, int restrict *last) {
+    MAX_T v = (*last < 64) ? (*last - '0') : ((*last | 32) - ('a' - 10));
     char t;
     while (1) {
-        if (canPull(state)) {
-            t = *state->data;
+        if (fread(&t, 1, 1, f)) {
             if (isdigit(t)) {
                 v = (v << 4) + (t - '0');
-                sError = 0;
-                incTokenState(state);
             } else {
-                t |= 32;
-                if (withinRange(t, 'a', 'f')) {
-                    v = (v << 4) + (t - ('a' - 10));
-                    sError = 0;
-                    incTokenState(state);
+                char t2 = t | 32;
+                if (withinRange(t2, 'a', 'f')) {
+                    v = (v << 4) + (t2 - ('a' - 10));
                 } else {
-                    state->err = sError;
+                    *last = t;
                     return v;
                 }
             }
         } else {
-            state->err = sError;
+            *last = t;
             return v;
         }
     }
 }
 
-char pullEsc(struct token_state *state) {
-    if (hasMore(state)) {
-        state->err = 1;
+// Last is assumed to be the backslash, sets last to char after last valid char
+char pullEscChar(FILE *f, int *err, char *last) {
+    char t;
+    if (!fread(&t, 1, 1, f)) {
+        *err = 1;
         return 0;
     }
-    switch (*state->data) {
-        case 'a': return '\x07';
-        case 'b': return '\x08';
-        case 'e': return '\x1b';
-        case 'f': return '\x0c';
-        case 'n': return '\x0a';
-        case 'r': return '\x0d';
-        case 't': return '\x09';
-        case 'v': return '\x0b';
+    *last = t;
+    char r;
+    switch (t) {
+        case 'a': fread(last, 1, 1, f); return '\x07';
+        case 'b': fread(last, 1, 1, f); return '\x08';
+        case 'e': fread(last, 1, 1, f); return '\x1b';
+        case 'f': fread(last, 1, 1, f); return '\x0c';
+        case 'n': fread(last, 1, 1, f); return '\x0a';
+        case 'r': fread(last, 1, 1, f); return '\x0d';
+        case 't': fread(last, 1, 1, f); return '\x09';
+        case 'v': fread(last, 1, 1, f); return '\x0b';
         case '0':
         case '1':
         case '2':
@@ -257,25 +199,26 @@ char pullEsc(struct token_state *state) {
         case '5':
         case '6':
         case '7':
-            struct token_state *stateDupe = dupeTokenState(state);
-            char *last2 = state->data + 2;
-            stateDupe->last = min(state->last, last2);
-            return pullOct(state);
+            return pullOctNumLimited(f, last, 3);
         case 'x':
-            incTokenState(state);
-            return pullHex(data, last, err);
+            if (!fread(last, 1, 1, f) || !isxdigit(*last)) {
+                *err = 1;
+                fputs("Invalid hexidecimal escape character\n");
+                return 0;
+            }
+            return pullHexNum(f, last);
         case '\'':
         case '"':
         case '\\':
-            char t = *state->data;
-            incTokenState(state);
+            fread(last, 1, 1, f);
             return t;
         default:
-            state->err = 1;
+            *err = 1;
             return 0;
     }
 }
 
+/*
 int pullChar(struct token_state *state) {
     if (!hasMore(state)) {
         printError(state, "Character is unterminated");
@@ -597,6 +540,7 @@ int pullOpt(struct token_state *state, char **out) {
         default: return -1;
     }
 }
+*/
 
 struct token_item {
     struct token_item *next;
@@ -650,30 +594,72 @@ void freeAllItems(struct token_list *list) {
     list->start = list->end = NULL;
 }
 
-int tokenise(char *data, struct token_list **list, int dataLen) {
-    struct token_state state;
-    if (hasError(&state)) {
-        fprintf(stderr, "Token state has error, can't tokenise\n");
-        return -1;
-    }
-    while (hasMore(&state)) {
-        char t = *state.data;
+int tokenise(FILE *f, struct token_list *list, int dataLen) {
+    freeAllItems(list);
+    unsigned int line = 1;
+    char t;
+    while (fread(&t, 1, 1, f)) {
+        after_loop_condition:
         if (isspace(t)) {
+            // Parse whitespace
             insertToken(list, createItem("whitespace", NULL, -1));
             do {
-                incTokenState(&state);
-                if (!hasMore(&state)) {
-                    break;
+                if (t == '\n') {
+                    line++;
                 }
-                t = *state.data;
+                if (!fread(&t, 1, 1, f)) {
+                    goto loop_end;
+                }
             } while (isspace(t));
+            goto after_loop_condition;
         } else if (t == '"') {
-            incTokenState(&state);
+            // Parse string
             char *str;
-            int len = pullStr(&state, &str);
-            if (hasError(&state)) return -1;
-            insertToken(list, createItem("string", str, len));
-            continue;
+            if ((str = (char *) malloc(1024)) == NULL) {
+                fprintf(stderr, "Failed to allocate memory for string\n");
+            }
+            int mem = 1024;
+            int len = 0;
+            while (fread(&t, 1, 1, f)) {
+                switch (t) {
+                    case '"':
+                        // End string
+                        char *tstr = realloc(str, pos);
+                        if (tstr == NULL) {
+                            fputs("Warning: could not shrink allocation\n", stderr);
+                        } else str = tstr;
+                        goto str_end;
+                    case '\n':
+                        printError(state, "Unexpected line ending");
+                        freeAllItems(list);
+                        return -1;
+                    case '\\':
+                        // Read escape sequence
+                        char t = pullEscChar(state);
+                        if (hasError(state)) {
+                            printError(state, "Invalid escape sequence");
+                            return;
+                        }
+                        goto wrt;
+                    default:
+                        t = *state->data;
+                        incTokenState(state);
+                        wrt:
+                        str[pos] = t;
+                        pos++;
+                        if (pos == len) {
+                            len *= 2;
+                            if ((str = realloc(str, len * sizeof(char))) == NULL) {
+                                fprintf(stderr, "Failed to reallocate more memory forstring\n");
+                                exit(1);
+                            }
+                        }
+                }
+            }
+            str_end:
+            printError(state, "String is unterminated");
+            state->err = 1;
+            return 0;
         } else if (t == '\'') {
             incTokenState(&state);
             char outChar = pullChar(&state);
@@ -682,4 +668,6 @@ int tokenise(char *data, struct token_list **list, int dataLen) {
             *str = outChar;
             insertToken(list, createItem("char", str, 1));
         } else if (isdigit(t)) {
-            
+    }
+    loop_end:
+    
